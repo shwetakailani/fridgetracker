@@ -188,19 +188,17 @@
 </div>
 <div class="toast" id="toast"></div>
 
-<script src="/api/config"></script>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, updateDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
-// ── Firebase config — injected at build time via env vars ──
 const firebaseConfig = {
-  
-  
-  
-  
-  
-  
+  apiKey: "AIzaSyBCD0K7x8oFC5xg3SJFa6N8reVccXIrzFY",
+  authDomain: "fridgetracker-b2845.firebaseapp.com",
+  projectId: "fridgetracker-b2845",
+  storageBucket: "fridgetracker-b2845.firebasestorage.app",
+  messagingSenderId: "155507722454",
+  appId: "1:155507722454:web:86b2049bd04b63b8d66177",
 };
 
 const app = initializeApp(firebaseConfig);
