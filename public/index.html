@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#0F6E56">
+<title>FridgeTracker</title>
+<link rel="manifest" href="/manifest.json">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9fafb; color: #111827; min-height: 100vh; }
+  
+  /* Layout */
+  #app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+  .header { background: white; border-bottom: 1px solid #f3f4f6; padding: 16px 16px 0; position: sticky; top: 0; z-index: 10; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header-sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+  .content { flex: 1; padding: 16px; padding-bottom: 80px; overflow-y: auto; }
+  
+  /* Bottom Nav */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #f3f4f6; display: flex; z-index: 20; max-width: 480px; margin: 0 auto; }
+  .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 8px 4px; font-size: 10px; color: #9ca3af; background: none; border: none; cursor: pointer; gap: 2px; position: relative; }
+  .nav-btn.active { color: #0F6E56; font-weight: 500; }
+  .nav-icon { font-size: 18px; line-height: 1; }
+  .nav-badge { position: absolute; top: 4px; right: calc(50% - 16px); width: 8px; height: 8px; background: #ef4444; border-radius: 50%; }
+
+  /* Cards */
+  .card { background: white; border-radius: 16px; border: 1px solid #f3f4f6; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  
+  /* Buttons */
+  .btn-primary { background: #1D9E75; color: white; border: none; border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 500; width: 100%; cursor: pointer; }
+  .btn-primary:active { background: #0F6E56; }
+  .btn-secondary { background: #f3f4f6; color: #374151; border: none; border-radius: 12px; padding: 10px 16px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .btn-sm { border: none; border-radius: 8px; padding: 5px 8px; font-size: 12px; cursor: pointer; }
+  .btn-green { background: #f0fdf4; color: #15803d; }
+  .btn-red { background: #fef2f2; color: #dc2626; }
+
+  /* Form */
+  .form-group { margin-bottom: 14px; }
+  .label { display: block; font-size: 11px; font-weight: 500; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  input, select { width: 100%; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px 14px; font-size: 14px; background: white; color: #111827; -webkit-appearance: none; appearance: none; }
+  input:focus, select:focus { outline: none; border-color: #1D9E75; box-shadow: 0 0 0 3px rgba(29,158,117,0.1); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Status colors */
+  .dot-expired, .dot-critical { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; flex-shrink: 0; }
+  .dot-warning { width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; flex-shrink: 0; }
+  .dot-fresh { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+  .badge-expired, .badge-critical { background: #fef2f2; color: #dc2626; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+  .badge-warning { background: #fffbeb; color: #d97706; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+  .badge-fresh { background: #f0fdf4; color: #15803d; font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+  .border-expired, .border-critical { border-left: 4px solid #ef4444 !important; }
+  .border-warning { border-left: 4px solid #f59e0b !important; }
+  .border-fresh { border-left: 4px solid #22c55e !important; }
+
+  /* Item card */
+  .item-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 8px; }
+  .item-info { flex: 1; min-width: 0; }
+  .item-name { font-size: 14px; font-weight: 500; text-transform: capitalize; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-meta { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+  .item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  /* Summary pills */
+  .summary-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .pill { font-size: 11px; font-weight: 500; padding: 5px 10px; border-radius: 20px; }
+  .pill-red { background: #fef2f2; color: #dc2626; }
+  .pill-yellow { background: #fffbeb; color: #d97706; }
+  .pill-green { background: #f0fdf4; color: #15803d; }
+
+  /* Filter chips */
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; }
+  .chip { font-size: 11px; font-weight: 500; padding: 5px 10px; border-radius: 20px; border: 1px solid #e5e7eb; background: white; color: #6b7280; cursor: pointer; white-space: nowrap; }
+  .chip.active { background: #1D9E75; color: white; border-color: #1D9E75; }
+
+  /* Method cards */
+  .method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .method-card { border: 2px solid #e5e7eb; border-radius: 14px; padding: 14px 12px; cursor: pointer; background: white; text-align: left; }
+  .method-card.selected { border-color: #1D9E75; background: #f0fdf9; }
+  .method-icon { font-size: 24px; margin-bottom: 6px; }
+  .method-label { font-size: 13px; font-weight: 500; color: #111827; }
+  .method-sub { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+  /* Lookup message */
+  .lookup-msg { font-size: 12px; margin-top: 6px; padding: 8px 10px; border-radius: 8px; background: #f0fdf4; color: #15803d; }
+
+  /* Alert cards */
+  .alert-card { padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; margin-top: 16px; }
+  .section-label:first-child { margin-top: 0; }
+  .label-red { color: #dc2626; }
+  .label-yellow { color: #d97706; }
+
+  /* Recipe */
+  .recipe-card { margin-bottom: 8px; overflow: hidden; }
+  .recipe-header { padding: 14px; cursor: pointer; }
+  .recipe-title { font-size: 15px; font-weight: 600; }
+  .recipe-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .tag { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: #f3f4f6; color: #6b7280; }
+  .tag-green { background: #f0fdf4; color: #15803d; }
+  .recipe-body { border-top: 1px solid #f3f4f6; padding: 14px; display: none; }
+  .recipe-body.open { display: block; }
+  .recipe-step { display: flex; gap: 8px; font-size: 13px; color: #374151; margin-bottom: 8px; }
+  .step-num { font-size: 11px; font-weight: 700; color: #1D9E75; margin-top: 1px; flex-shrink: 0; width: 16px; }
+
+  /* Shopping */
+  .shop-item { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 6px; }
+  .shop-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #d1d5db; background: none; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .shop-check.checked { background: #1D9E75; border-color: #1D9E75; color: white; font-size: 12px; }
+  .shop-name { flex: 1; font-size: 14px; font-weight: 500; text-transform: capitalize; }
+  .shop-name.done { text-decoration: line-through; color: #9ca3af; }
+  .shop-reason { font-size: 11px; color: #9ca3af; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #1f2937; color: white; padding: 10px 18px; border-radius: 20px; font-size: 13px; font-weight: 500; z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 48px 20px; }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-title { font-size: 16px; font-weight: 500; color: #374151; }
+  .empty-sub { font-size: 13px; color: #9ca3af; margin-top: 4px; }
+
+  /* Search */
+  .search-wrap { position: relative; margin-bottom: 12px; }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; }
+  .search-input { padding-left: 34px !important; }
+
+  /* Info box */
+  .info-box { background: #f0fdf9; border: 1px solid #a7f3d0; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+  .info-title { font-size: 13px; font-weight: 600; color: #0F6E56; margin-bottom: 4px; }
+  .info-text { font-size: 12px; color: #065f46; line-height: 1.5; }
+
+  /* Sort row */
+  .sort-row { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 10px; gap: 8px; }
+  .sort-row label { font-size: 12px; color: #9ca3af; }
+  .sort-row select { width: auto; font-size: 12px; padding: 5px 10px; border-radius: 8px; }
+
+  .hidden { display: none !important; }
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .gap-2 { gap: 8px; }
+  .mt-2 { margin-top: 8px; }
+  .mt-3 { margin-top: 12px; }
+  .text-sm { font-size: 13px; }
+  .text-xs { font-size: 11px; }
+  .text-gray { color: #9ca3af; }
+  .font-medium { font-weight: 500; }
+  .w-full { width: 100%; }
+  .notif-btn { background: #f0fdf9; color: #0F6E56; border: none; border-radius: 20px; padding: 6px 12px; font-size: 12px; font-weight: 500; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <h1>🥦 FridgeTracker</h1>
+        <div class="header-sub" id="header-sub">Loading...</div>
+      </div>
+      <button class="notif-btn" id="notif-btn" onclick="enableNotifications()" style="display:none">🔔 Enable alerts</button>
+    </div>
+  </div>
+
+  <div class="content" id="content"></div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" id="nav-fridge" onclick="showTab('fridge')">
+      <span class="nav-icon">🗄</span>Fridge
+    </button>
+    <button class="nav-btn" id="nav-add" onclick="showTab('add')">
+      <span class="nav-icon">➕</span>Add Item
+    </button>
+    <button class="nav-btn" id="nav-alerts" onclick="showTab('alerts')">
+      <span class="nav-icon">🔔</span>Alerts
+      <span class="nav-badge hidden" id="alert-badge"></span>
+    </button>
+    <button class="nav-btn" id="nav-recipes" onclick="showTab('recipes')">
+      <span class="nav-icon">👨‍🍳</span>Recipes
+    </button>
+    <button class="nav-btn" id="nav-shopping" onclick="showTab('shopping')">
+      <span class="nav-icon">🛒</span>Shopping
+    </button>
+  </nav>
+</div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, updateDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+// ── Firebase config — injected at build time via env vars ──
+const firebaseConfig = {
+  apiKey:            "__FIREBASE_API_KEY__",
+  authDomain:        "__FIREBASE_AUTH_DOMAIN__",
+  projectId:         "__FIREBASE_PROJECT_ID__",
+  storageBucket:     "__FIREBASE_STORAGE_BUCKET__",
+  messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
+  appId:             "__FIREBASE_APP_ID__",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ── State ──
+let items = [];
+let shopping = [];
+let currentTab = 'fridge';
+let addMethod = 'manual';
+let filterCat = 'All';
+let sortBy = 'expiry';
+let expandedRecipe = null;
+
+// ── Shelf life DB ──
+const SHELF_LIFE = {
+  'leftover chicken':4,'leftover pasta':3,'leftover rice':4,'leftover pizza':4,
+  'leftover soup':4,'leftover beef':3,'leftover fish':2,'chick fil a':2,
+  'chick-fil-a':2,"mcdonald's":2,'subway':2,'chipotle':3,'chinese takeout':3,
+  'pizza':4,'restaurant leftovers':3,'milk':7,'eggs':21,'butter':30,
+  'cheese':14,'yogurt':14,'sour cream':14,'cream cheese':10,'heavy cream':7,
+  'chicken':2,'chicken breast':2,'ground beef':2,'beef':2,'pork':2,
+  'salmon':2,'fish':2,'shrimp':2,'bacon':7,'deli turkey':5,'deli ham':5,
+  'strawberries':5,'blueberries':7,'raspberries':3,'spinach':5,'lettuce':7,
+  'kale':7,'cucumber':7,'tomato':7,'bell pepper':10,'broccoli':5,
+  'cauliflower':7,'carrots':21,'celery':14,'apple':30,'orange':21,
+  'banana':5,'grapes':7,'avocado':4,'lemon':21,'orange juice':7,
+  'apple juice':10,'almond milk':7,'hummus':7,'salsa':14,'guacamole':3,
+};
+
+const CAT_ICONS = {Produce:'🥦',Dairy:'🥛',Meat:'🥩',Leftovers:'🍱',Drinks:'🥤',Other:'📦'};
+const CATEGORIES = ['Produce','Dairy','Meat','Leftovers','Drinks','Other'];
+
+// ── Helpers ──
+function daysUntil(d) {
+  const exp = new Date(d); const now = new Date();
+  now.setHours(0,0,0,0); exp.setHours(0,0,0,0);
+  return Math.round((exp - now) / 86400000);
+}
+function getStatus(d) {
+  const n = daysUntil(d);
+  if (n < 0) return 'expired'; if (n <= 2) return 'critical';
+  if (n <= 5) return 'warning'; return 'fresh';
+}
+function expiryLabel(d) {
+  const n = daysUntil(d);
+  if (n < 0) return 'Expired ' + Math.abs(n) + 'd ago';
+  if (n === 0) return 'Today'; if (n === 1) return 'Tomorrow';
+  return n + ' days left';
+}
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function addDaysToToday(n) {
+  const d = new Date(); d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+function lookupShelfLife(name) {
+  const low = name.toLowerCase().trim();
+  if (SHELF_LIFE[low]) return SHELF_LIFE[low];
+  for (const k of Object.keys(SHELF_LIFE)) {
+    if (low.includes(k) || k.includes(low)) return SHELF_LIFE[k];
+  }
+  return null;
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function updateHeader() {
+  const urgent = items.filter(i => ['expired','critical'].includes(getStatus(i.expiryDate))).length;
+  document.getElementById('header-sub').textContent =
+    items.length + ' items' + (urgent > 0 ? ' · ' + urgent + ' urgent' : '');
+  const badge = document.getElementById('alert-badge');
+  if (urgent > 0) badge.classList.remove('hidden');
+  else badge.classList.add('hidden');
+  if (Notification.permission !== 'granted') {
+    document.getElementById('notif-btn').style.display = 'block';
+  }
+}
+
+// ── Firebase listeners ──
+const itemsQ = query(collection(db, 'fridgeItems'), orderBy('createdAt', 'desc'));
+onSnapshot(itemsQ, snap => {
+  items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  updateHeader(); renderContent();
+});
+const shopQ = query(collection(db, 'shoppingItems'), orderBy('createdAt', 'desc'));
+onSnapshot(shopQ, snap => {
+  shopping = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  if (currentTab === 'shopping') renderContent();
+});
+
+// ── Tab switching ──
+window.showTab = function(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('nav-' + tab).classList.add('active');
+  renderContent();
+}
+
+// ── Render ──
+function renderContent() {
+  const el = document.getElementById('content');
+  if (currentTab === 'fridge') el.innerHTML = renderFridge();
+  else if (currentTab === 'add') el.innerHTML = renderAdd();
+  else if (currentTab === 'alerts') el.innerHTML = renderAlerts();
+  else if (currentTab === 'recipes') el.innerHTML = renderRecipes();
+  else el.innerHTML = renderShopping();
+}
+
+function renderFridge() {
+  let list = [...items];
+  if (filterCat !== 'All') list = list.filter(i => i.category === filterCat);
+  if (sortBy === 'expiry') list.sort((a,b) => a.expiryDate.localeCompare(b.expiryDate));
+  else if (sortBy === 'name') list.sort((a,b) => a.name.localeCompare(b.name));
+
+  const cats = ['All', ...new Set(items.map(i => i.category || 'Other'))];
+  const urgent = items.filter(i => ['expired','critical'].includes(getStatus(i.expiryDate))).length;
+  const warn = items.filter(i => getStatus(i.expiryDate) === 'warning').length;
+  const fresh = items.filter(i => getStatus(i.expiryDate) === 'fresh').length;
+
+  if (items.length === 0) return `<div class="empty"><div class="empty-icon">🥗</div><div class="empty-title">Your fridge is empty</div><div class="empty-sub">Tap Add Item to get started</div></div>`;
+
+  return `
+    <div class="summary-row">
+      ${urgent > 0 ? `<span class="pill pill-red">🔴 ${urgent} urgent</span>` : ''}
+      ${warn > 0 ? `<span class="pill pill-yellow">🟡 ${warn} soon</span>` : ''}
+      ${fresh > 0 ? `<span class="pill pill-green">🟢 ${fresh} fresh</span>` : ''}
+    </div>
+    <div class="filter-row">
+      ${cats.map(c => `<button class="chip${filterCat===c?' active':''}" onclick="setFilter('${c}')">${c!=='All'?(CAT_ICONS[c]||'📦')+' ':''} ${c}</button>`).join('')}
+    </div>
+    <div class="sort-row">
+      <label>Sort:</label>
+      <select onchange="setSort(this.value)">
+        <option value="expiry"${sortBy==='expiry'?' selected':''}>Expiring first</option>
+        <option value="name"${sortBy==='name'?' selected':''}>A–Z</option>
+      </select>
+    </div>
+    ${list.length === 0 ? '<div class="empty"><div class="empty-sub">No items in this category</div></div>' :
+    list.map(item => {
+      const s = getStatus(item.expiryDate);
+      return `<div class="card item-card border-${s}">
+        <span class="dot-${s}"></span>
+        <div class="item-info">
+          <div class="item-name">${item.name}</div>
+          <div class="item-meta">${CAT_ICONS[item.category]||'📦'} ${item.category||'Other'}${item.quantity>1?' · '+item.quantity+(item.unit?' '+item.unit:''):''}</div>
+          <div class="item-meta">Exp: ${item.expiryDate}</div>
+        </div>
+        <span class="badge-${s}">${expiryLabel(item.expiryDate)}</span>
+        <div class="item-actions">
+          <button class="btn-sm btn-green" onclick="removeItem('${item.id}','consumed')" title="Used">✓</button>
+          <button class="btn-sm btn-red" onclick="removeItem('${item.id}','discard')" title="Discard">✕</button>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function renderAdd() {
+  return `
+    <div style="margin-bottom:6px"><span style="font-size:18px;font-weight:600">Add Item</span></div>
+    <div class="text-xs text-gray" style="margin-bottom:16px">Purchase date is set to today automatically</div>
+    <div class="method-grid">
+      <button class="method-card${addMethod==='manual'?' selected':''}" onclick="setMethod('manual')">
+        <div class="method-icon">✏️</div><div class="method-label">Manual</div><div class="method-sub">Type details</div>
+      </button>
+      <button class="method-card${addMethod==='leftover'?' selected':''}" onclick="setMethod('leftover')">
+        <div class="method-icon">🍱</div><div class="method-label">Leftover</div><div class="method-sub">Auto date</div>
+      </button>
+    </div>
+    <div class="form-group">
+      <label class="label">Item name</label>
+      <input type="text" id="f-name" placeholder="${addMethod==='leftover'?'e.g. Chick-fil-A, leftover pasta…':'e.g. Milk, Strawberries…'}" oninput="handleNameInput(this.value)" />
+      <div id="lookup-msg"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="label">Category</label>
+        <select id="f-cat">${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select>
+      </div>
+      <div class="form-group">
+        <label class="label">Expiry date</label>
+        <input type="date" id="f-exp" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="label">Purchase date</label>
+        <input type="date" id="f-purch" value="${todayStr()}" />
+      </div>
+      <div class="form-group">
+        <label class="label">Qty</label>
+        <input type="number" id="f-qty" value="1" min="1" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="label">Notes (optional)</label>
+      <input type="text" id="f-notes" placeholder="Brand, restaurant, etc." />
+    </div>
+    <div id="add-error" style="color:#dc2626;font-size:13px;margin-bottom:8px"></div>
+    <button class="btn-primary" onclick="saveItem()">+ Add to Fridge</button>`;
+}
+
+function renderAlerts() {
+  const urgent = items.filter(i => ['expired','critical'].includes(getStatus(i.expiryDate)))
+    .sort((a,b) => a.expiryDate.localeCompare(b.expiryDate));
+  const soon = items.filter(i => getStatus(i.expiryDate) === 'warning')
+    .sort((a,b) => a.expiryDate.localeCompare(b.expiryDate));
+
+  if (urgent.length === 0 && soon.length === 0) return `
+    <div class="empty"><div class="empty-icon">✅</div>
+    <div class="empty-title">All clear!</div>
+    <div class="empty-sub">Nothing expiring in the next 5 days</div></div>`;
+
+  return `
+    ${urgent.length > 0 ? `
+      <div class="section-label label-red">⚠️ Use immediately</div>
+      ${urgent.map(i => `
+        <div class="card alert-card border-critical">
+          <span style="font-size:18px">${CAT_ICONS[i.category]||'📦'}</span>
+          <div style="flex:1"><div class="item-name">${i.name}</div>
+          <div class="item-meta" style="color:#dc2626;font-weight:500">${expiryLabel(i.expiryDate)}</div></div>
+          <button class="btn-sm btn-green" onclick="removeItem('${i.id}','consumed')">Used ✓</button>
+        </div>`).join('')}` : ''}
+    ${soon.length > 0 ? `
+      <div class="section-label label-yellow" style="margin-top:${urgent.length>0?'16px':'0'}">⏰ Use soon</div>
+      ${soon.map(i => `
+        <div class="card alert-card border-warning">
+          <span style="font-size:18px">${CAT_ICONS[i.category]||'📦'}</span>
+          <div style="flex:1"><div class="item-name">${i.name}</div>
+          <div class="item-meta" style="color:#d97706;font-weight:500">${expiryLabel(i.expiryDate)}</div></div>
+          <button class="btn-sm btn-green" onclick="removeItem('${i.id}','consumed')">Used ✓</button>
+        </div>`).join('')}` : ''}`;
+}
+
+function renderRecipes() {
+  const names = items.map(i => i.name.toLowerCase());
+  const RECIPES = [
+    { name:'Stir Fry', time:'20 min', diff:'Easy', needs:['chicken','broccoli','bell pepper','carrot'],
+      steps:['Chop all vegetables into bite-sized pieces','Heat oil in a pan or wok over high heat','Cook chicken until golden and done through','Add vegetables and stir fry for 5 minutes','Season with soy sauce, garlic, and ginger'] },
+    { name:'Omelette', time:'10 min', diff:'Easy', needs:['eggs','cheese','spinach','tomato'],
+      steps:['Beat 2-3 eggs with a pinch of salt','Heat butter in a non-stick pan','Pour in eggs and let set slightly','Add fillings on one side','Fold over and serve immediately'] },
+    { name:'Simple Salad', time:'5 min', diff:'Easy', needs:['lettuce','tomato','cucumber','bell pepper'],
+      steps:['Wash and dry all vegetables','Chop into bite-sized pieces','Combine in a large bowl','Drizzle with olive oil and lemon juice','Season with salt and pepper'] },
+    { name:'Smoothie', time:'5 min', diff:'Easy', needs:['banana','strawberries','blueberries','milk'],
+      steps:['Peel and slice the banana','Add all fruit to blender','Pour in milk or yogurt','Blend until completely smooth','Pour and enjoy immediately'] },
+    { name:'Chicken Soup', time:'40 min', diff:'Medium', needs:['chicken','carrots','celery','broth'],
+      steps:['Dice chicken breast into chunks','Chop carrots and celery','Sauté vegetables in oil for 5 minutes','Add chicken and cover with broth','Simmer 30 minutes, season to taste'] },
+    { name:'Pasta with Veggies', time:'25 min', diff:'Easy', needs:['pasta','tomato','spinach','garlic'],
+      steps:['Boil pasta per package instructions','Sauté garlic in olive oil','Add diced tomatoes, cook 5 minutes','Add spinach and wilt','Toss with pasta and season'] },
+  ];
+
+  const matched = RECIPES.map(r => {
+    const found = r.needs.filter(n => names.some(item => item.includes(n) || n.includes(item)));
+    return { ...r, matched: found, score: found.length };
+  }).filter(r => r.score > 0).sort((a,b) => b.score - a.score).slice(0, 4);
+
+  if (items.length === 0) return `<div class="empty"><div class="empty-icon">👨‍🍳</div><div class="empty-title">No items yet</div><div class="empty-sub">Add items to see recipe ideas</div></div>`;
+  if (matched.length === 0) return `<div class="empty"><div class="empty-icon">🤔</div><div class="empty-title">No matching recipes</div><div class="empty-sub">Try adding more common ingredients</div></div>`;
+
+  return `
+    <div style="margin-bottom:16px">
+      <div style="font-size:18px;font-weight:600;margin-bottom:4px">Recipe Ideas</div>
+      <div class="text-xs text-gray">Based on what's in your fridge</div>
+    </div>
+    ${matched.map(r => `
+      <div class="card recipe-card">
+        <div class="recipe-header" onclick="toggleRecipe('${r.name}')">
+          <div class="flex items-center justify-between">
+            <div class="recipe-title">${r.name}</div>
+            <span style="color:#9ca3af">${expandedRecipe===r.name?'▲':'▼'}</span>
+          </div>
+          <div class="recipe-tags">
+            <span class="tag">⏱ ${r.time}</span>
+            <span class="tag">📊 ${r.diff}</span>
+            <span class="tag tag-green">✓ ${r.matched.length} from fridge</span>
+          </div>
+          <div class="text-xs text-gray mt-2">Uses: ${r.matched.join(', ')}</div>
+        </div>
+        <div class="recipe-body${expandedRecipe===r.name?' open':''}">
+          <div style="font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px">Instructions</div>
+          ${r.steps.map((s,i) => `<div class="recipe-step"><span class="step-num">${i+1}.</span><span>${s}</span></div>`).join('')}
+        </div>
+      </div>`).join('')}
+    <div class="text-xs text-gray" style="text-align:center;margin-top:16px">💡 AI-powered recipes coming in a future update</div>`;
+}
+
+function renderShopping() {
+  const pending = shopping.filter(s => !s.checked);
+  const checked = shopping.filter(s => s.checked);
+
+  return `
+    <div style="margin-bottom:6px"><span style="font-size:18px;font-weight:600">Shopping List</span></div>
+    <div class="text-xs text-gray" style="margin-bottom:14px">${pending.length} item${pending.length!==1?'s':''} to get · Auto-updated when items expire</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input type="text" id="shop-input" placeholder="Add item manually…" style="flex:1" onkeypress="if(event.key==='Enter')addShopItem()" />
+      <button class="btn-primary" style="width:auto;padding:10px 16px" onclick="addShopItem()">Add</button>
+    </div>
+    ${shopping.length === 0 ? `<div class="empty"><div class="empty-icon">🛒</div><div class="empty-title">List is empty</div><div class="empty-sub">Items appear here automatically when food expires or gets used</div></div>` : ''}
+    ${pending.length > 0 ? `
+      <div class="section-label" style="color:#6b7280;margin-top:0">To get (${pending.length})</div>
+      ${pending.map(s => `
+        <div class="card shop-item">
+          <button class="shop-check" onclick="toggleShop('${s.id}',${s.checked})"></button>
+          <div style="flex:1">
+            <div class="shop-name">${s.name}</div>
+            ${s.reason?`<div class="shop-reason">${s.reason}</div>`:''}
+          </div>
+          <button class="btn-sm btn-red" onclick="deleteShop('${s.id}')">✕</button>
+        </div>`).join('')}` : ''}
+    ${checked.length > 0 ? `
+      <div class="flex items-center justify-between" style="margin-top:16px;margin-bottom:8px">
+        <div class="section-label" style="color:#9ca3af;margin:0">Got it (${checked.length})</div>
+        <button onclick="clearChecked()" style="font-size:11px;color:#ef4444;background:none;border:none;cursor:pointer">Clear all</button>
+      </div>
+      ${checked.map(s => `
+        <div class="card shop-item" style="opacity:0.5">
+          <button class="shop-check checked" onclick="toggleShop('${s.id}',${s.checked})">✓</button>
+          <div class="shop-name done">${s.name}</div>
+          <button class="btn-sm btn-red" onclick="deleteShop('${s.id}')">✕</button>
+        </div>`).join('')}` : ''}`;
+}
+
+// ── Actions ──
+window.setFilter = function(cat) { filterCat = cat; renderContent(); }
+window.setSort = function(s) { sortBy = s; renderContent(); }
+window.setMethod = function(m) { addMethod = m; renderContent(); }
+window.toggleRecipe = function(name) {
+  expandedRecipe = expandedRecipe === name ? null : name;
+  renderContent();
+}
+
+window.handleNameInput = function(val) {
+  const msg = document.getElementById('lookup-msg');
+  if (!msg) return;
+  if (val.length < 3) { msg.innerHTML = ''; return; }
+  const days = lookupShelfLife(val);
+  if (days) {
+    const exp = addDaysToToday(days);
+    const expEl = document.getElementById('f-exp');
+    if (expEl) expEl.value = exp;
+    msg.innerHTML = `<div class="lookup-msg">✓ Found: ~${days} day shelf life — expiry auto-filled</div>`;
+  } else {
+    msg.innerHTML = '';
+  }
+}
+
+window.saveItem = async function() {
+  const name = document.getElementById('f-name')?.value?.trim();
+  const exp = document.getElementById('f-exp')?.value;
+  const purch = document.getElementById('f-purch')?.value || todayStr();
+  const cat = document.getElementById('f-cat')?.value || 'Other';
+  const qty = parseInt(document.getElementById('f-qty')?.value) || 1;
+  const notes = document.getElementById('f-notes')?.value || '';
+  const errEl = document.getElementById('add-error');
+
+  if (!name) { errEl.textContent = 'Please enter a name'; return; }
+  if (!exp) { errEl.textContent = 'Please enter an expiry date'; return; }
+  errEl.textContent = '';
+
+  try {
+    await addDoc(collection(db, 'fridgeItems'), {
+      name, category: cat, expiryDate: exp, purchasedDate: purch,
+      quantity: qty, notes: notes || null, createdAt: Date.now(),
+    });
+    showToast('✓ ' + name + ' added!');
+    showTab('fridge');
+  } catch(e) {
+    errEl.textContent = 'Failed to save: ' + e.message;
+  }
+}
+
+window.removeItem = async function(id, action) {
+  const item = items.find(i => i.id === id);
+  await deleteDoc(doc(db, 'fridgeItems', id));
+  if (item) {
+    const already = shopping.some(s => s.name.toLowerCase() === item.name.toLowerCase() && !s.checked);
+    if (!already) {
+      await addDoc(collection(db, 'shoppingItems'), {
+        name: item.name, category: item.category, checked: false,
+        reason: action === 'consumed' ? 'Used up' : 'Expired', createdAt: Date.now(),
+      });
+    }
+  }
+  showToast(action === 'consumed' ? '✓ Marked as used' : '🗑 Removed');
+}
+
+window.addShopItem = async function() {
+  const input = document.getElementById('shop-input');
+  if (!input || !input.value.trim()) return;
+  await addDoc(collection(db, 'shoppingItems'), {
+    name: input.value.trim(), checked: false, reason: 'Manual', createdAt: Date.now(),
+  });
+  input.value = '';
+}
+
+window.toggleShop = async function(id, checked) {
+  await updateDoc(doc(db, 'shoppingItems', id), { checked: !checked });
+}
+
+window.deleteShop = async function(id) {
+  await deleteDoc(doc(db, 'shoppingItems', id));
+}
+
+window.clearChecked = async function() {
+  const toDelete = shopping.filter(s => s.checked);
+  for (const s of toDelete) await deleteDoc(doc(db, 'shoppingItems', s.id));
+}
+
+window.enableNotifications = async function() {
+  if (!('Notification' in window)) { showToast('Notifications not supported on this browser'); return; }
+  const result = await Notification.requestPermission();
+  if (result === 'granted') {
+    showToast('✓ Notifications enabled!');
+    document.getElementById('notif-btn').style.display = 'none';
+    checkNotifications();
+  } else {
+    showToast('Notifications blocked in browser settings');
+  }
+}
+
+function checkNotifications() {
+  if (Notification.permission !== 'granted') return;
+  const urgent = items.filter(i => { const d = daysUntil(i.expiryDate); return d >= 0 && d <= 2; });
+  if (urgent.length === 0) return;
+  new Notification('🥦 FridgeTracker', {
+    body: urgent.length === 1
+      ? urgent[0].name + (daysUntil(urgent[0].expiryDate) === 0 ? ' expires today!' : ' expires tomorrow!')
+      : urgent.length + ' items expiring soon: ' + urgent.map(i=>i.name).join(', ')
+  });
+}
+
+// Initial render
+renderContent();
+</script>
+</body>
+</html>
